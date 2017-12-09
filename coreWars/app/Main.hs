@@ -1,6 +1,6 @@
 module Main where
 
-import Lib
+import RedCode
+import System.IO
 
-main :: IO ()
-main = someFunc
+main = do readProgramFile

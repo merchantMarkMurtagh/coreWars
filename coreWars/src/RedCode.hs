@@ -5,6 +5,7 @@ data AddrMode =  Direct
                | Indirect
                | Immediate
                | AutoDec
+               | Error
                  deriving(Show, Read)
 
 data Opcode = Identity
@@ -20,11 +21,11 @@ data Opcode = Identity
             | SPL
               deriving(Show, Read)
 
-type Instruction = (Opcode, AddrInt, AddrInt) 
+type Instruction = (Opcode, Maybe AddrInt, Maybe  AddrInt) 
 
 type AddrInt = (AddrMode, Integer)
 
-type Program = [Instruction]
+type Program = [Instruction] 
 
 addInstruction :: Instruction ->  [Instruction] -> [Instruction]
 addInstruction instr x = instr:x 
@@ -32,21 +33,19 @@ addInstruction instr x = instr:x
 readProgramFile = do
                 withFile "src/program.txt" ReadMode (\handle -> do  
                     contents <- hGetContents handle 
-                    let x = lines contents
-
-                    putStr contents) 
+                    let x = fmap words $ lines contents
+                    let a = makeProgram x
+                    putStr $ show a) 
 
 
 makeProgram :: [[String]] -> Program
 makeProgram a = fmap makeInstruction a
 
-
-makeInstruction :: [String] -> Instruction
+makeInstruction :: [String] -> Instruction 
 makeInstruction [a, b, c] = (op, (aField), (bField))
                                 where op = getOp a
-                                      aField = makeAddrInt (getAddrMode $ splitAddr b) (getL $ splitAddr b)
-                                      bField = makeAddrInt (getAddrMode $ splitAddr c) (getL $ splitAddr c)
-
+                                      aField = makeAddrInt (getAddrMode $ getAddr $  b) (getNum $ noComma b)
+                                      bField = makeAddrInt (getAddrMode $ getAddr $  c) (getNum $ noComma c)
 
 getOp :: String -> Opcode
 getOp "MOV" = MOV
@@ -60,25 +59,26 @@ getOp "DJN" = DJN
 getOp "CMP" = CMP
 getOp "SPL" = SPL
 
-getAddrMode :: [String] -> AddrMode
-getAddrMode ["#", _ ] = Immediate
-getAddrMode ["@", _ ] = Indirect
-getAddrMode ["<", _ ] = AutoDec
-getAddrMode ["", _ ] = Direct
+getAddrMode :: Char -> AddrMode
+getAddrMode '#' = Immediate
+getAddrMode '@' = Indirect
+getAddrMode '<' = AutoDec
+getAddrMode (_)= Direct
 
-makeAddrInt :: AddrMode -> Integer -> AddrInt
-makeAddrInt a b =  (a, b)
+makeAddrInt :: AddrMode -> Integer -> Maybe AddrInt
+makeAddrInt a b = Just (a, b)
 
-getL :: [String] -> Integer
-getL [_, b, _] = (read b :: Integer)
-getL [_, b] = (read b :: Integer)
+getNum :: String -> Integer
+getNum (x:xs) = read xs 
+getNum x = read x 
 
-getMode :: [String] -> String
-getMode [a, _, _] = a
-getMode [a, _] = a
+getAddr :: String -> Char
+getAddr (x:xs) = x
 
-splitAddr :: String -> [String]
-splitAddr s = words s
+noComma :: String -> String
+noComma a = filter (\c -> c /= ',') a
+
+
 
 
 

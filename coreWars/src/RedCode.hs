@@ -21,9 +21,9 @@ data Opcode = Identity
             | SPL
               deriving(Show, Read)
 
-type Instruction = (Opcode, Maybe AddrInt, Maybe  AddrInt) 
+type Instruction = (Opcode, Maybe Field, Maybe Field) 
 
-type AddrInt = (AddrMode, Integer)
+type Field = (AddrMode, Integer)
 
 type Program = [Instruction] 
 
@@ -65,7 +65,7 @@ getAddrMode '@' = Indirect
 getAddrMode '<' = AutoDec
 getAddrMode (_)= Direct
 
-makeAddrInt :: AddrMode -> Integer -> Maybe AddrInt
+makeAddrInt :: AddrMode -> Integer -> Maybe Field
 makeAddrInt a b = Just (a, b)
 
 getNum :: String -> Integer

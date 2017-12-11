@@ -21,31 +21,40 @@ data Opcode = Identity
             | SPL
               deriving(Show, Read)
 
-type Instruction = (Opcode, Maybe Field, Maybe Field) 
+data Instruction =   N Opcode Field Field
+                   | J Opcode Field
+                   | D Opcode Field 
+                   deriving(Show, Read)
 
 type Field = (AddrMode, Integer)
 
 type Program = [Instruction] 
 
-addInstruction :: Instruction ->  [Instruction] -> [Instruction]
-addInstruction instr x = instr:x 
 
 readProgramFile = do
                 withFile "src/program.txt" ReadMode (\handle -> do  
                     contents <- hGetContents handle 
                     let x = fmap words $ lines contents
                     let a = makeProgram x
-                    putStr $ show a) 
+                    putStr $ show a
+                    ) 
 
 
 makeProgram :: [[String]] -> Program
 makeProgram a = fmap makeInstruction a
 
 makeInstruction :: [String] -> Instruction 
-makeInstruction [a, b, c] = (op, (aField), (bField))
+makeInstruction ["JMP", b] = (J op aField)
+                                where op = getOp "JMP"
+                                      aField = (makeAddrInt (getAddrMode $ getAddr b) (getNum $ noComma b))
+makeInstruction ["DAT", b] = (D op aField)
+                                where op = getOp "DAT"
+                                      aField = (makeAddrInt (getAddrMode $ getAddr b) (getNum $ noComma b))
+makeInstruction [a, b, c] = (N op aField bField)
                                 where op = getOp a
-                                      aField = makeAddrInt (getAddrMode $ getAddr $  b) (getNum $ noComma b)
-                                      bField = makeAddrInt (getAddrMode $ getAddr $  c) (getNum $ noComma c)
+                                      aField = (makeAddrInt (getAddrMode $ getAddr b) (getNum $ noComma b))
+                                      bField = (makeAddrInt (getAddrMode $ getAddr c) (getNum $ noComma c))
+
 
 getOp :: String -> Opcode
 getOp "MOV" = MOV
@@ -65,12 +74,12 @@ getAddrMode '@' = Indirect
 getAddrMode '<' = AutoDec
 getAddrMode (_)= Direct
 
-makeAddrInt :: AddrMode -> Integer -> Maybe Field
-makeAddrInt a b = Just (a, b)
+makeAddrInt :: AddrMode -> Integer -> Field
+makeAddrInt a b = (a, b)
 
 getNum :: String -> Integer
-getNum (x:xs) = read xs 
-getNum x = read x 
+getNum (_:xs) = read xs 
+getNum (x) = read x  --!!!!!!!!!!!!!!!!!!!!!!! doesn't work for plain integers
 
 getAddr :: String -> Char
 getAddr (x:xs) = x
@@ -78,9 +87,10 @@ getAddr (x:xs) = x
 noComma :: String -> String
 noComma a = filter (\c -> c /= ',') a
 
-
-
-
+-- getConstructor :: String -> Constructor
+-- getConstructor "JMP" = J
+-- getConstructor "DAT" = D
+-- getConstructor _ = N
 
 
 

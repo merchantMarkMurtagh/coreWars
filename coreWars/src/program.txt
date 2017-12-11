@@ -1,3 +1,4 @@
 ADD #5, @3 
 MOV #0, @2
-JMP 2
+JMP #5
+DAT #1

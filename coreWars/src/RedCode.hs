@@ -37,9 +37,8 @@ readProgramFile = do
                     putStr contents) 
 
 
-makeProgram :: [String] -> Program
-makeProgram x = [makeInstruction x]
-makeProgram x:xs = makeInstruction x:(makeProgram xs)
+makeProgram :: [[String]] -> Program
+makeProgram a = fmap makeInstruction a
 
 
 makeInstruction :: [String] -> Instruction

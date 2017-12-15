@@ -1,12 +1,13 @@
 module RedCode where 
 import System.IO 
+import System.Random
 
 data AddrMode =  Direct
                | Indirect
                | Immediate
                | AutoDec
                | Error
-                 deriving(Show, Read)
+                 deriving(Show, Read, Eq)
 
 data Opcode = Identity
             | MOV
@@ -19,26 +20,29 @@ data Opcode = Identity
             | DJN
             | CMP
             | SPL
-              deriving(Show, Read)
+              deriving(Show, Read, Eq)
 
 data Instruction =   N Opcode Field Field
                    | J Opcode Field
                    | D Opcode Field 
                    deriving(Show, Read)
 
-type Field = (AddrMode, Integer)
+type Field = (AddrMode, Int)
 
 type Program = [Instruction] 
 
+type Programs = [Program]
 
-readProgramFile = do
-                withFile "src/program.txt" ReadMode (\handle -> do  
-                    contents <- hGetContents handle 
+readPrograms :: String -> IO Program
+readPrograms path  = readProgramFile path
+
+
+readProgramFile :: String -> IO Program
+readProgramFile path = do
+                    contents <- readFile path 
                     let x = fmap words $ lines contents
-                    let a = makeProgram x
-                    putStr $ show a
-                    ) 
-
+                    return $ (makeProgram x)
+                     
 
 makeProgram :: [[String]] -> Program
 makeProgram a = fmap makeInstruction a
@@ -55,7 +59,6 @@ makeInstruction [a, b, c] = (N op aField bField)
                                       aField = (makeAddrInt (getAddrMode $ getAddr b) (getNum $ noComma b))
                                       bField = (makeAddrInt (getAddrMode $ getAddr c) (getNum $ noComma c))
 
-
 getOp :: String -> Opcode
 getOp "MOV" = MOV
 getOp "DAT" = DAT
@@ -68,35 +71,27 @@ getOp "DJN" = DJN
 getOp "CMP" = CMP
 getOp "SPL" = SPL
 
+-- noComments :: String -> String
+-- noComments str = head $ splitOn ";" str
+
 getAddrMode :: Char -> AddrMode
 getAddrMode '#' = Immediate
 getAddrMode '@' = Indirect
 getAddrMode '<' = AutoDec
 getAddrMode (_)= Direct
 
-makeAddrInt :: AddrMode -> Integer -> Field
+makeAddrInt :: AddrMode -> Int -> Field
 makeAddrInt a b = (a, b)
 
-getNum :: String -> Integer
-getNum (_:xs) = read xs 
-getNum (x) = read x  --!!!!!!!!!!!!!!!!!!!!!!! doesn't work for plain integers
+getNum :: String -> Int
+getNum (x:xs) 
+            | length (x:xs) == 1 = read (x:xs)
+            | otherwise = read xs
+
 
 getAddr :: String -> Char
 getAddr (x:xs) = x
 
 noComma :: String -> String
 noComma a = filter (\c -> c /= ',') a
-
--- getConstructor :: String -> Constructor
--- getConstructor "JMP" = J
--- getConstructor "DAT" = D
--- getConstructor _ = N
-
-
-
-
-
-
-
-
 

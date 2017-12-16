@@ -27,4 +27,5 @@ main = do
     ts <- runProg sharedM progs
     after <- atomically $ readTVar sharedM
     print $ show after
+    --print $ show after
 

@@ -14,7 +14,6 @@ import Debug.Trace
 type MapM = Map Int Instruction
 type Memory = TVar (MapM) 
 
-
 makeMemory :: [Instruction]
 makeMemory = replicate 100 (makeInstruction ["DAT", "0"])
 
@@ -41,58 +40,65 @@ changePos a l= fmap (\(x,y) -> (x+a*10, y)) l
 
 runProg :: Memory -> Programs -> IO [ThreadId]
 runProg mem progs = do
-  mapM (\(i,x) -> (forkIO $ executeProgram (i*10) mem)) (zip [1..] progs)  -- t1 execute 1000 memory, t2 execute 2000 memory
-
-executeProgram :: Int -> Memory -> IO ()                        -- excute 1000 mem, execute 1001 mem, execute 1002 mem ...
-executeProgram a sharedV = do
-	                   print $ show a
-	                   mem <- atomically (readTVar sharedV)
-	                   let memNew = executeInstruction a mem
-	                   print $ show memNew
-	                   atomically (writeTVar sharedV memNew)
+  mapM (\(i,x) -> (forkIO $ executeProgram (i*10) mem)) (zip [1..] progs)
 
 
-executeInstruction :: Int -> MapM -> MapM                    -- get instruction, execute, count ++, get instruction execute
-executeInstruction count mem =  executeInstruction a $ doInstruction count instr mem
-								where a = count+1
-								      instr = getInstr count mem
-excuteInstruction count mem 
-                           | test == "DAT" = mem
-                           where test = getOpType $ getInstr count mem
+-- execute instruction, program count++, excute instruction
+
+executeProgram :: Int -> Memory -> IO ()	 
+executeProgram pCount sharedV = do
+	                   executeInstruction pCount sharedV --need to be done atomically
+	                   let nCount = pCount+1
+	                   print "g"
+	                   mem2 <- atomically $ readTVar sharedV
+
+	                   executeProgram nCount sharedV
+	                   return ()
+
+
+
+executeInstruction :: Int -> Memory -> IO ()                  -- get instruction, execute, return
+executeInstruction count sharedV = do 
+	                      mem <- atomically $ readTVar sharedV
+	                      let instr = getInstr count mem
+	                      let newMem = doInstruction count instr mem
+	                      atomically (writeTVar sharedV newMem)
+	                      return ()
+
 
 
 doInstruction :: Int -> Instruction -> MapM -> MapM
 doInstruction pCount (N op aField bField) mem 
-                                     | op == MOV && getAMF(aField) == Immediate = insert offset (newVal) mem
+                                     | op == MOV && getAMF(aField) == Immediate = (insert offset (newVal) mem)
                                       where offset = calculateOffset pCount (getAddrF bField)
                                             prevInst = fromJust $ lookup (getAddrF bField) mem
                                             newVal = (changeTo DAT $ changeBField prevInst $ getAddrF aField)
 doInstruction pCount (N op aField bField) mem 
-                                     | op == MOV = insert offset (newVal) mem
+                                     | op == MOV = (insert offset (newVal) mem)
                                       where offset = calculateOffset pCount (getAddrF bField)
                                             newVal = fromJust $ lookup (getAddrF aField) mem
 doInstruction pCount (N op aField bField) mem
-                                     | op == ADD = insert offset (newInstr) mem
+                                     | op == ADD = (insert offset (newInstr) mem)
                                        where offset = calculateOffset pCount (getAddrF bField)
                                              val1 = getAddrF $ getAField $ fromJust $ lookup (getAddrF aField) mem
                                              val2 = getAddrF $ getBField $ fromJust $ lookup (getAddrF bField) mem
                                              newVal = val1 + val2
                                              oldInstr = fromJust $ lookup (getAddrF bField) mem
                                              newInstr = changeBField oldInstr newVal
-doInstruction pCount (N op aField bField) mem
-                                      | op == SUB = insert offset (newInstr) mem
-                                       where offset = calculateOffset pCount (getAddrF bField)
-                                             val1 = getAddrF $ getAField $ fromJust $ lookup (getAddrF aField) mem
-                                             val2 = getAddrF $ getBField $ fromJust $ lookup (getAddrF bField) mem
-                                             newVal = val1 - val2
-                                             oldInstr = fromJust $ lookup (getAddrF bField) mem
-                                             newInstr = changeBField oldInstr newVal
-doInstruction pCount (J op aField) mem
-                                      | op == JMP = excuteInstruction (getAddrF aField) mem
-doInstruction pCount (N JMN aField (a,x)) mem
-                                      | x > 0 = excuteInstruction (getAddrF aField) mem
-doInstruction pCount (N JMN aField (a,0)) mem  = excuteInstruction (pc) mem
-                                               where pc = pCount + 1
+-- doInstruction pCount (N op aField bField) mem
+--                                       | op == SUB = insert offset (newInstr) mem
+--                                        where offset = calculateOffset pCount (getAddrF bField)
+--                                              val1 = getAddrF $ getAField $ fromJust $ lookup (getAddrF aField) mem
+--                                              val2 = getAddrF $ getBField $ fromJust $ lookup (getAddrF bField) mem
+--                                              newVal = val1 - val2
+--                                              oldInstr = fromJust $ lookup (getAddrF bField) mem
+--                                              newInstr = changeBField oldInstr newVal
+-- doInstruction pCount (J op aField) mem
+--                                       | op == JMP = excuteInstruction (getAddrF aField) mem
+-- doInstruction pCount (N JMN aField (a,x)) mem
+--                                       | x > 0 = excuteInstruction (getAddrF aField) mem
+-- doInstruction pCount (N JMN aField (a,0)) mem  = excuteInstruction (pc) mem
+--                                                where pc = pCount + 1
 
 
 calculateOffset :: Int -> Int -> Int

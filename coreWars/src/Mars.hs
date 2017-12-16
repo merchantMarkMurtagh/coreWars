@@ -15,7 +15,7 @@ type MapM = Map Int Instruction
 type Memory = TVar (MapM) 
 
 makeMemory :: [Instruction]
-makeMemory = replicate 100 (makeInstruction ["DAT", "0"])
+makeMemory = replicate 70 (makeInstruction ["DAT", "0"])
 
 makeTvar :: MapM -> IO Memory
 makeTvar m = atomically (newTVar (m)) 
@@ -43,28 +43,31 @@ runProg mem progs = do
   mapM (\(i,x) -> (forkIO $ executeProgram (i*10) mem)) (zip [1..] progs)
 
 
+
 -- execute instruction, program count++, excute instruction
 
 executeProgram :: Int -> Memory -> IO ()	 
 executeProgram pCount sharedV = do
-	                   executeInstruction pCount sharedV --need to be done atomically
-	                   let nCount = pCount+1
-	                   print "g"
-	                   mem2 <- atomically $ readTVar sharedV
+	                   
+	                   (nMem, instr)<- atomically $ executeInstruction pCount sharedV --need to be done atomically
+	                   case getOpType (instr) of 
+	                   	"DAT" -> do id <- myThreadId
+	                   	            putStrLn $ "Killin " ++ (show id)
+	                   	            killThread id
+	                   	_     -> do id <- myThreadId
+	                   	            putStrLn $ (show id) ++ " is performing " ++ (show instr)
+	                   	            threadDelay 1000000
+	                   	            let nCount = pCount+1
+	                   	            executeProgram nCount nMem
+	                   	            return ()
 
-	                   executeProgram nCount sharedV
-	                   return ()
-
-
-
-executeInstruction :: Int -> Memory -> IO ()                  -- get instruction, execute, return
+executeInstruction :: Int -> Memory -> STM (Memory, Instruction)                  -- get instruction, execute, return
 executeInstruction count sharedV = do 
-	                      mem <- atomically $ readTVar sharedV
+	                      mem <- readTVar sharedV
 	                      let instr = getInstr count mem
-	                      let newMem = doInstruction count instr mem
-	                      atomically (writeTVar sharedV newMem)
-	                      return ()
-
+	                      let newMem = doInstruction count (instr) mem
+	                      writeTVar sharedV newMem
+	                      return (sharedV, instr)
 
 
 doInstruction :: Int -> Instruction -> MapM -> MapM
@@ -85,14 +88,17 @@ doInstruction pCount (N op aField bField) mem
                                              newVal = val1 + val2
                                              oldInstr = fromJust $ lookup (getAddrF bField) mem
                                              newInstr = changeBField oldInstr newVal
--- doInstruction pCount (N op aField bField) mem
---                                       | op == SUB = insert offset (newInstr) mem
---                                        where offset = calculateOffset pCount (getAddrF bField)
---                                              val1 = getAddrF $ getAField $ fromJust $ lookup (getAddrF aField) mem
---                                              val2 = getAddrF $ getBField $ fromJust $ lookup (getAddrF bField) mem
---                                              newVal = val1 - val2
---                                              oldInstr = fromJust $ lookup (getAddrF bField) mem
---                                              newInstr = changeBField oldInstr newVal
+
+doInstruction pCount (N op aField bField) mem
+                                      | op == SUB = insert offset (newInstr) mem
+                                       where offset = calculateOffset pCount (getAddrF bField)
+                                             val1 = getAddrF $ getAField $ fromJust $ lookup (getAddrF aField) mem
+                                             val2 = getAddrF $ getBField $ fromJust $ lookup (getAddrF bField) mem
+                                             newVal = val1 - val2
+                                             oldInstr = fromJust $ lookup (getAddrF bField) mem
+                                             newInstr = changeBField oldInstr newVal
+doInstruction pCount _ mem = mem
+
 -- doInstruction pCount (J op aField) mem
 --                                       | op == JMP = excuteInstruction (getAddrF aField) mem
 -- doInstruction pCount (N JMN aField (a,x)) mem
@@ -119,7 +125,10 @@ changeBField (D op a) val = (D op (getAMF a, val))
 
 getOpType :: Instruction -> String
 getOpType (N MOV a b ) = "MOV"
+getOpType (N ADD a b ) = "ADD"
+getOpType (N SUB a b ) = "SUB"
 getOpType (D DAT a ) = "DAT"
+
 
 changeTo :: Opcode -> Instruction -> Instruction
 changeTo DAT (N op aField bField) = (D DAT aField) 
@@ -127,9 +136,11 @@ changeTo DAT (D op aField) = (D op aField)
 
 getAField :: Instruction -> Field
 getAField (N op aField bField) = aField
+getAField (D op aField) = aField
 
 getBField :: Instruction -> Field
 getBField (N op aField bField) = bField
+getBField (D op aField) = aField
 
 
 

@@ -110,7 +110,7 @@ doInstruction pCount _ mem = mem
 
 
 calculateOffset :: Int -> Int -> Int
-calculateOffset pCounter val = (pCounter + val) `mod` 8000 
+calculateOffset pCounter val = (pCounter + val) `mod` 70 
 
 getInstr :: Int -> MapM ->  Instruction --Maybe Instruction
 getInstr i mem = fromJust $ lookup i mem

@@ -31,7 +31,7 @@ main = do
     let progs = [x, y, xx, yy, xxx]
     sharedM <- makeTvar memF
     ts <- runProg sharedM progs
-    threadDelay 15000000
+    threadDelay 20000000
     after <- atomically $ readTVar sharedM
     print $ show after
     --print $ show afters

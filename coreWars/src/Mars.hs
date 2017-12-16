@@ -4,12 +4,14 @@ import RedCode
 import Prelude hiding (lookup)
 import System.Random
 import Data.List.Index
+import System.Console.ANSI
 import Data.Map
 import Data.Maybe
 import Control.Monad.STM
 import Control.Concurrent.STM.TVar
 import Debug.Trace
-import Debug.Trace 
+import Data.Hashable
+
 
 type MapM = Map Int Instruction
 type Memory = TVar (MapM) 
@@ -52,11 +54,11 @@ executeProgram pCount sharedV = do
 	                   (nMem, instr)<- atomically $ executeInstruction pCount sharedV --need to be done atomically
 	                   case getOpType (instr) of 
 	                   	"DAT" -> do id <- myThreadId
-	                   	            putStrLn $ "Killin " ++ (show id)
+	                   	            putStrLn $  (show id) ++ " Died! :O"
 	                   	            killThread id
 	                   	_     -> do id <- myThreadId
 	                   	            putStrLn $ (show id) ++ " is performing " ++ (show instr)
-	                   	            threadDelay 1000000
+	                   	            threadDelay 2000000
 	                   	            let nCount = pCount+1
 	                   	            executeProgram nCount nMem
 	                   	            return ()
@@ -141,9 +143,6 @@ getAField (D op aField) = aField
 getBField :: Instruction -> Field
 getBField (N op aField bField) = bField
 getBField (D op aField) = aField
-
-
-
 
 
 
